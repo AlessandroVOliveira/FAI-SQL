@@ -4,6 +4,14 @@
 
 **Software para armazenamento e execução de comandos SQL recorrentes, desenvolvido com Python e Tkinter.**
 
+## Tela inicial
+![alt text](image.png)
+
+## Tela de configuração de conexão
+![alt text](image-1.png)
+
+## Tela para adição de comandos
+![alt text](image-2.png)
 -----
 
 ### Visumo Geral
