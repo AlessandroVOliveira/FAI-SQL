@@ -1,0 +1,18 @@
+[
+    {
+        "nome": "Seleciona cliente",
+        "comando": "select * from tbl_entidades"
+    },
+    {
+        "nome": "Seleciona formas de pagamento",
+        "comando": "select * from tbl_financeiro_formas_pagamento"
+    },
+    {
+        "nome": "Seleciona entidades",
+        "comando": "select * from tbl_entidades where cd_entidade = 1"
+    },
+    {
+        "nome": "Ajusta troco da tabela do pdv",
+        "comando": "select * from tbl_pdv where cd_pdv = NUMERO"
+    }
+]

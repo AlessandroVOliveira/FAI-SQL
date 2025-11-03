@@ -1,0 +1,6 @@
+{
+    "ip": "IP DA INSTANCIA DO SQL + PORTA",
+    "usuario": "USUARIO DO SQL",
+    "senha": "SENHA DO USUARIO DO SQL",
+    "banco": "NOME DO BANCO DE DADOS DO SQL"
+}

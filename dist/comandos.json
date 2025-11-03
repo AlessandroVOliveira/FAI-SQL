@@ -1,0 +1,6 @@
+[
+    {
+        "nome": "COMANDO EXEMPLO",
+        "comando": "SELECT * FROM TABELA DO SISTEMA"
+    }
+]
