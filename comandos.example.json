@@ -1,0 +1,10 @@
+[
+    {
+        "nome": "Exemplo - Selecionar Tabelas",
+        "comando": "SELECT * FROM sys.tables"
+    },
+    {
+        "nome": "Exemplo - Contar Registros",
+        "comando": "SELECT COUNT(*) AS total FROM sua_tabela"
+    }
+]

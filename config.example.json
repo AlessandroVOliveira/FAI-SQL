@@ -1,0 +1,13 @@
+{
+    "tema": "claro",
+    "conexao_ativa": "Exemplo",
+    "conexoes": [
+        {
+            "nome": "Exemplo",
+            "ip": "localhost",
+            "usuario": "seu_usuario",
+            "senha": "sua_senha",
+            "banco": "seu_banco"
+        }
+    ]
+}

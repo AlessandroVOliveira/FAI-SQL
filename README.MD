@@ -1,107 +1,142 @@
+# FAI-SQL
 
+**Gerenciador de Comandos SQL Desktop** - Software para armazenamento e execução de comandos SQL recorrentes.
 
-## Gerenciador de Comandos SQL Desktop
+![Interface Principal](image.png)
 
-**Software para armazenamento e execução de comandos SQL recorrentes, desenvolvido com Python e Tkinter.**
+---
 
-## Tela inicial
-![alt text](image.png)
+## 📋 Recursos
 
-## Tela de configuração de conexão
-![alt text](image-1.png)
+- ✅ **Interface moderna** com temas claro/escuro
+- ✅ **Gerenciador de múltiplas conexões** SQL Server
+- ✅ **Armazenamento de comandos** SQL para reuso
+- ✅ **Edição e exclusão** de comandos salvos
+- ✅ **Syntax Highlighting** SQL em tempo real
+- ✅ **Exportação** para CSV e Excel
+- ✅ **Histórico** de comandos executados
+- ✅ **Undo/Redo** (Ctrl+Z / Ctrl+Y)
 
-## Tela para adição de comandos
-![alt text](image-2.png)
------
+---
 
-### Visumo Geral
+## 🚀 Instalação
 
-O Gerenciador de Comandos SQL Desktop é uma aplicação stand-alone desenvolvida para auxiliar desenvolvedores, DBAs e analistas a armazenarem e executarem comandos SQL de uso frequente de forma rápida e eficiente. O software elimina a necessidade de procurar ou digitar comandos repetitivos, permitindo a execução direta no banco de dados configurado e exibindo os resultados em tempo real.
+### Pré-requisitos
 
-### Recursos Principais
+- Python 3.8+
+- Driver ODBC do SQL Server instalado
 
-  * **Armazenamento Persistente de Comandos:** Salve múltiplos comandos SQL em um arquivo JSON local para fácil acesso e reuso.
-  * **Conexão Simplificada:** Mantenha os parâmetros de conexão do banco de dados salvos em um arquivo JSON separado, permitindo a troca rápida de ambiente, se necessário.
-  * **Execução com Um Clique:** Selecione um comando salvo na interface principal e execute-o diretamente no banco de dados configurado.
-  * **Comandos Livres:** Execute comandos SQL avulsos, digitados diretamente na tela, para consultas e operações não salvas.
-  * **Visualização de Resultados:** O resultado da execução (tabela de dados, mensagem de sucesso ou erro) é exibido em um painel dedicado na tela principal.
-  * **Interface Gráfica Intuitiva:** Desenvolvido com Tkinter para uma experiência de usuário desktop simples e direta.
+### Passos
 
-### Tecnologias Utilizadas
-
-  * **Linguagem:** Python
-  * **Interface Gráfica:** Tkinter
-  * **Gerenciamento de Dependências:** `pip`
-  * **Build do Executável:** PyInstaller
-
------
-
-### Instalação e Execução
-
-Para rodar o projeto localmente ou construir o executável, siga os passos abaixo.
-
-#### Pré-requisitos
-
-  * Python 3.x instalado.
-  * pyinstaller
-  * pyodbc
-  * **Instalação das Dependências:**
-    ```bash
-    pip install pyinstaller # Necessário para criar o executável
-    pip install pyodbc
-    ```
-
-#### Execução Local (do Código Fonte)
-
-1.  Clone o repositório para sua máquina:
-    
-2.  Execute o script principal:
-    ```bash
-    python main.py 
-    ```
-
------
-
-### Build do Aplicativo (`.exe` com PyInstaller)
-
-Para gerar um arquivo executável (`.exe`) que possa ser distribuído e executado em qualquer máquina Windows sem a necessidade de instalar o Python, utilize o PyInstaller.
-
-**Instrução de Build:**
-
-Execute o comando abaixo no terminal, na pasta raiz do  projeto.
-
+1. Clone o repositório:
 ```bash
-pyinstaller --onefile --windowed --name "FAISQL" main.py
+git clone https://github.com/seu-usuario/FAI-SQL.git
+cd FAI-SQL
 ```
 
-| Opção | Descrição |
-| :--- | :--- |
-| `--onefile` | Cria um único arquivo executável, facilitando a distribuição. |
-| `--windowed` | Impede que a janela do console/terminal seja exibida ao executar o aplicativo Tkinter. |
-| `--name "FAISQL"` | Define o nome do executável e da especificação do build como "FAISQL". |
+2. Instale as dependências:
+```bash
+pip install -r requirements.txt
+```
 
-**Resultado:**
+3. Crie os arquivos de configuração:
+```bash
+copy config.example.json config.json
+copy comandos.example.json comandos.json
+```
 
-Após a execução, o PyInstaller criará uma pasta chamada `dist` no diretório do projeto. O arquivo executável (`FAISQL.exe`) estará dentro dessa pasta.
+4. Execute a aplicação:
+```bash
+python main.py
+```
 
------
+---
 
-### Estrutura de Arquivos de Configuração
+## ⚙️ Configuração
 
-O aplicativo utiliza dois arquivos JSON para persistência de dados:
+### Conexão com Banco de Dados
 
-1.  **`config.json`**: Armazena as credenciais e parâmetros necessários para estabelecer a conexão com o banco de dados. **Mantenha este arquivo seguro.**
-2.  **`comandos.json`**: Contém a lista de comandos SQL que o usuário salvou para reutilização.
+1. Acesse **Sistema → Conexão**
+2. Preencha os dados: Nome, Servidor/IP, Usuário, Senha, Banco
+3. Clique em **Testar** para verificar
+4. Clique em **Salvar** para adicionar
 
------
+Você pode criar múltiplas conexões e alternar entre elas clicando em **Usar**.
 
-### Contribuição
+### Gerenciamento de Comandos
 
-Sinta-se à vontade para sugerir melhorias, reportar bugs ou enviar pull requests. Qualquer contribuição é bem-vinda\!
+- **Adicionar**: Sistema → Adicionar Comando
+- **Editar**: Selecione um comando e clique em ✏️ Editar
+- **Excluir**: Selecione um comando e clique em 🗑️ Excluir
 
------
+---
 
+## 📁 Estrutura de Arquivos
 
+```
+FAI-SQL/
+├── main.py              # Aplicação principal
+├── requirements.txt     # Dependências Python
+├── config.json          # Configurações de conexão (não versionado)
+├── comandos.json        # Comandos salvos (não versionado)
+├── historico.json       # Histórico de execuções (não versionado)
+├── config.example.json  # Exemplo de configuração
+├── comandos.example.json # Exemplo de comandos
+├── icon.ico             # Ícone da aplicação
+├── docs/                # Documentação
+│   ├── contexto_projeto.md
+│   └── relatorio_implementacao_melhorias.md
+└── dist/                # Executável (após build)
+```
 
+---
 
+## 🎨 Temas
 
+Alterne entre tema claro e escuro em: **Sistema → Tema Escuro/Claro**
+
+A preferência é salva automaticamente.
+
+---
+
+## 📤 Exportação
+
+Após executar um SELECT:
+- Clique em **📄 CSV** para exportar como CSV
+- Clique em **📊 Excel** para exportar como Excel formatado
+
+---
+
+## 🔨 Build (Executável)
+
+Para criar um `.exe` distribuível:
+
+```bash
+pip install pyinstaller
+pyinstaller --onefile --windowed --icon=icon.ico --name "FAISQL" main.py
+```
+
+O executável será gerado em `dist/FAISQL.exe`.
+
+---
+
+## 🛠️ Tecnologias
+
+| Componente | Tecnologia |
+|------------|------------|
+| Linguagem | Python 3.x |
+| Interface | Tkinter |
+| Banco de Dados | SQL Server (pyodbc) |
+| Exportação Excel | openpyxl |
+
+---
+
+## 📜 Licença
+
+Este projeto está sob licença MIT.
+
+---
+
+## 🤝 Contribuição
+
+Contribuições são bem-vindas! Abra uma issue ou envie um pull request.
