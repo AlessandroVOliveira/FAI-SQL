@@ -6,6 +6,7 @@ import os
 import csv
 import re
 from datetime import datetime
+import crypto_utils as crypto
 
 # ============================================
 # CONFIGURAÇÃO DE TEMAS
@@ -69,26 +70,23 @@ tema_atual = "claro"
 def carregar_preferencia_tema():
     """Carrega a preferência de tema do arquivo de configuração"""
     global tema_atual
-    if os.path.exists("config.json"):
-        try:
-            with open("config.json", "r") as arquivo:
-                dados = json.load(arquivo)
-                tema_atual = dados.get("tema", "claro")
-        except:
-            tema_atual = "claro"
+    try:
+        dados = crypto.ler_arquivo_seguro(crypto.ARQUIVO_CONFIG)
+        if dados:
+            tema_atual = dados.get("tema", "claro")
+    except:
+        tema_atual = "claro"
 
 def salvar_preferencia_tema():
     """Salva a preferência de tema no arquivo de configuração"""
-    dados = {}
-    if os.path.exists("config.json"):
-        try:
-            with open("config.json", "r") as arquivo:
-                dados = json.load(arquivo)
-        except:
-            pass
+    try:
+        dados = crypto.ler_arquivo_seguro(crypto.ARQUIVO_CONFIG)
+        if dados is None:
+            dados = {}
+    except:
+        dados = {}
     dados["tema"] = tema_atual
-    with open("config.json", "w") as arquivo:
-        json.dump(dados, arquivo, indent=4)
+    crypto.escrever_arquivo_seguro(crypto.ARQUIVO_CONFIG, dados)
 
 def aplicar_tema():
     """Aplica o tema atual a todos os widgets"""
@@ -250,66 +248,62 @@ def sair():
 conexao_ativa = None  # Nome da conexão ativa
 
 def carregar_conexoes():
-    """Carrega todas as conexões do config.json"""
-    if os.path.exists("config.json"):
-        try:
-            with open("config.json", "r") as f:
-                dados = json.load(f)
-                # Migrar formato antigo para novo se necessário
-                if "conexoes" not in dados:
-                    if "ip" in dados:
-                        # Migrar conexão existente
-                        dados["conexoes"] = [{
-                            "nome": "Padrão",
-                            "ip": dados.get("ip", ""),
-                            "usuario": dados.get("usuario", ""),
-                            "senha": dados.get("senha", ""),
-                            "banco": dados.get("banco", "")
-                        }]
-                        dados["conexao_ativa"] = "Padrão"
-                        # Manter tema
-                        tema = dados.get("tema", "claro")
-                        dados["tema"] = tema
-                        # Salvar migração
-                        with open("config.json", "w") as fw:
-                            json.dump(dados, fw, indent=4)
-                return dados.get("conexoes", [])
-        except:
-            return []
+    """Carrega todas as conexões do config criptografado"""
+    try:
+        dados = crypto.ler_arquivo_seguro(crypto.ARQUIVO_CONFIG)
+        if dados:
+            # Migrar formato antigo para novo se necessário
+            if "conexoes" not in dados:
+                if "ip" in dados:
+                    # Migrar conexão existente
+                    dados["conexoes"] = [{
+                        "nome": "Padrão",
+                        "ip": dados.get("ip", ""),
+                        "usuario": dados.get("usuario", ""),
+                        "senha": dados.get("senha", ""),
+                        "banco": dados.get("banco", "")
+                    }]
+                    dados["conexao_ativa"] = "Padrão"
+                    # Manter tema
+                    tema = dados.get("tema", "claro")
+                    dados["tema"] = tema
+                    # Salvar migração
+                    crypto.escrever_arquivo_seguro(crypto.ARQUIVO_CONFIG, dados)
+            return dados.get("conexoes", [])
+    except:
+        pass
     return []
 
 def obter_conexao_ativa():
     """Retorna os dados da conexão ativa"""
-    if os.path.exists("config.json"):
-        try:
-            with open("config.json", "r") as f:
-                dados = json.load(f)
-                nome_ativa = dados.get("conexao_ativa", "")
-                conexoes = dados.get("conexoes", [])
-                for conn in conexoes:
-                    if conn.get("nome") == nome_ativa:
-                        return conn
-                # Fallback para formato antigo
-                if "ip" in dados and "conexoes" not in dados:
-                    return dados
-        except:
-            pass
+    try:
+        dados = crypto.ler_arquivo_seguro(crypto.ARQUIVO_CONFIG)
+        if dados:
+            nome_ativa = dados.get("conexao_ativa", "")
+            conexoes = dados.get("conexoes", [])
+            for conn in conexoes:
+                if conn.get("nome") == nome_ativa:
+                    return conn
+            # Fallback para formato antigo
+            if "ip" in dados and "conexoes" not in dados:
+                return dados
+    except:
+        pass
     return None
 
 def definir_conexao_ativa(nome):
     """Define qual conexão é a ativa"""
     global conexao_ativa
     conexao_ativa = nome
-    if os.path.exists("config.json"):
-        try:
-            with open("config.json", "r") as f:
-                dados = json.load(f)
-            dados["conexao_ativa"] = nome
-            with open("config.json", "w") as f:
-                json.dump(dados, f, indent=4)
-            atualizar_label_conexao()
-        except:
-            pass
+    try:
+        dados = crypto.ler_arquivo_seguro(crypto.ARQUIVO_CONFIG)
+        if dados is None:
+            dados = {}
+        dados["conexao_ativa"] = nome
+        crypto.escrever_arquivo_seguro(crypto.ARQUIVO_CONFIG, dados)
+        atualizar_label_conexao()
+    except:
+        pass
 
 def atualizar_label_conexao():
     """Atualiza o label que mostra a conexão ativa"""
@@ -402,14 +396,14 @@ def abrir_tela_conexao():
         if not messagebox.askyesno("🗑️ Confirmar", "Excluir esta conexão?", parent=tela_conexao):
             return
         try:
-            with open("config.json", "r") as f:
-                dados = json.load(f)
+            dados = crypto.ler_arquivo_seguro(crypto.ARQUIVO_CONFIG)
+            if dados is None:
+                dados = {}
             conexoes = dados.get("conexoes", [])
             if sel[0] < len(conexoes):
                 del conexoes[sel[0]]
                 dados["conexoes"] = conexoes
-                with open("config.json", "w") as f:
-                    json.dump(dados, f, indent=4)
+                crypto.escrever_arquivo_seguro(crypto.ARQUIVO_CONFIG, dados)
                 atualizar_lista()
                 messagebox.showinfo("✅ Sucesso", "Conexão excluída!", parent=tela_conexao)
         except Exception as e:
@@ -488,10 +482,9 @@ def abrir_tela_conexao():
         }
         
         try:
-            dados = {}
-            if os.path.exists("config.json"):
-                with open("config.json", "r") as f:
-                    dados = json.load(f)
+            dados = crypto.ler_arquivo_seguro(crypto.ARQUIVO_CONFIG)
+            if dados is None:
+                dados = {}
             
             conexoes = dados.get("conexoes", [])
             
@@ -510,8 +503,7 @@ def abrir_tela_conexao():
             if not dados.get("conexao_ativa"):
                 dados["conexao_ativa"] = nome
             
-            with open("config.json", "w") as f:
-                json.dump(dados, f, indent=4)
+            crypto.escrever_arquivo_seguro(crypto.ARQUIVO_CONFIG, dados)
             
             atualizar_lista()
             atualizar_label_conexao()
@@ -535,9 +527,9 @@ def abrir_tela_adicionar_comando():
     
     tela_adicionar_comando = tk.Toplevel(root)
     tela_adicionar_comando.title("➕ Adicionar Comando")
-    tela_adicionar_comando.geometry("700x500")
+    tela_adicionar_comando.geometry("700x550")
     tela_adicionar_comando.configure(bg=tema["bg"])
-    tela_adicionar_comando.minsize(500, 400)
+    tela_adicionar_comando.minsize(700, 450)
     
     tela_adicionar_comando.transient(root)
     tela_adicionar_comando.grab_set()
@@ -561,21 +553,26 @@ def abrir_tela_adicionar_comando():
             "comando": comando
         }
 
-        if os.path.exists("comandos.json"):
-            with open("comandos.json", "r") as arquivo:
-                comandos = json.load(arquivo)
-        else:
+        comandos = crypto.ler_arquivo_seguro(crypto.ARQUIVO_COMANDOS)
+        if comandos is None:
             comandos = []
 
         comandos.append(novo_comando)
 
-        with open("comandos.json", "w") as arquivo:
-            json.dump(comandos, arquivo, indent=4)
+        crypto.escrever_arquivo_seguro(crypto.ARQUIVO_COMANDOS, comandos)
 
         messagebox.showinfo("✅ Sucesso", "Comando salvo!", parent=tela_adicionar_comando)
         tela_adicionar_comando.destroy()
         carregar_comandos_no_combobox()
 
+    # Frame do botão (empacotar primeiro com side=bottom para garantir visibilidade)
+    frame_botao = ttk.Frame(main_frame)
+    frame_botao.pack(side="bottom", fill="x", pady=(10, 0))
+    
+    btn_salvar = ttk.Button(frame_botao, text="💾 Salvar Comando", 
+                            style="Accent.TButton", command=salvar_comando)
+    btn_salvar.pack()
+    
     # Nome do comando
     frame_nome = ttk.Frame(main_frame)
     frame_nome.pack(fill="x", pady=(0, 15))
@@ -604,10 +601,6 @@ def abrir_tela_adicionar_comando():
                                    highlightcolor=tema["accent"])
     caixa_texto_comando.pack(fill="both", expand=True, pady=(4, 0))
 
-    btn_salvar = ttk.Button(main_frame, text="💾 Salvar Comando", 
-                            style="Accent.TButton", command=salvar_comando)
-    btn_salvar.pack(pady=(10, 0))
-
 def abrir_tela_editar_comando():
     """Abre janela para editar o comando selecionado"""
     nome_comando_selecionado = combo_comandos.get()
@@ -620,9 +613,9 @@ def abrir_tela_editar_comando():
     
     tela_editar = tk.Toplevel(root)
     tela_editar.title("✏️ Editar Comando")
-    tela_editar.geometry("700x550")
+    tela_editar.geometry("900x550")
     tela_editar.configure(bg=tema["bg"])
-    tela_editar.minsize(500, 500)
+    tela_editar.minsize(900, 550)
     
     tela_editar.transient(root)
     tela_editar.grab_set()
@@ -636,14 +629,13 @@ def abrir_tela_editar_comando():
     # Carregar dados do comando
     comando_atual = None
     indice_comando = -1
-    if os.path.exists("comandos.json"):
-        with open("comandos.json", "r") as arquivo:
-            comandos = json.load(arquivo)
-            for i, cmd in enumerate(comandos):
-                if cmd["nome"] == nome_comando_selecionado:
-                    comando_atual = cmd
-                    indice_comando = i
-                    break
+    comandos = crypto.ler_arquivo_seguro(crypto.ARQUIVO_COMANDOS)
+    if comandos:
+        for i, cmd in enumerate(comandos):
+            if cmd["nome"] == nome_comando_selecionado:
+                comando_atual = cmd
+                indice_comando = i
+                break
     
     if comando_atual is None:
         messagebox.showerror("❌ Erro", "Comando não encontrado!", parent=tela_editar)
@@ -659,16 +651,16 @@ def abrir_tela_editar_comando():
             return
         
         # Atualizar no arquivo
-        with open("comandos.json", "r") as arquivo:
-            comandos = json.load(arquivo)
+        comandos = crypto.ler_arquivo_seguro(crypto.ARQUIVO_COMANDOS)
+        if comandos is None:
+            comandos = []
         
         comandos[indice_comando] = {
             "nome": novo_nome,
             "comando": novo_comando
         }
         
-        with open("comandos.json", "w") as arquivo:
-            json.dump(comandos, arquivo, indent=4)
+        crypto.escrever_arquivo_seguro(crypto.ARQUIVO_COMANDOS, comandos)
         
         messagebox.showinfo("✅ Sucesso", "Comando atualizado!", parent=tela_editar)
         tela_editar.destroy()
@@ -731,14 +723,10 @@ def excluir_comando():
         return
     
     # Remover do arquivo
-    if os.path.exists("comandos.json"):
-        with open("comandos.json", "r") as arquivo:
-            comandos = json.load(arquivo)
-        
+    comandos = crypto.ler_arquivo_seguro(crypto.ARQUIVO_COMANDOS)
+    if comandos:
         comandos = [cmd for cmd in comandos if cmd["nome"] != nome_comando_selecionado]
-        
-        with open("comandos.json", "w") as arquivo:
-            json.dump(comandos, arquivo, indent=4)
+        crypto.escrever_arquivo_seguro(crypto.ARQUIVO_COMANDOS, comandos)
         
         messagebox.showinfo("✅ Sucesso", "Comando excluído!")
         carregar_comandos_no_combobox()
@@ -746,26 +734,24 @@ def excluir_comando():
         caixa_texto_comando.delete("1.0", tk.END)
 
 def carregar_comandos_no_combobox():
-    if os.path.exists("comandos.json"):
-        with open("comandos.json", "r") as arquivo:
-            comandos = json.load(arquivo)
-            nomes_comandos = [comando["nome"] for comando in comandos]
-            combo_comandos["values"] = nomes_comandos
+    comandos = crypto.ler_arquivo_seguro(crypto.ARQUIVO_COMANDOS)
+    if comandos:
+        nomes_comandos = [comando["nome"] for comando in comandos]
+        combo_comandos["values"] = nomes_comandos
     else:
         combo_comandos["values"] = []
 
 def ao_selecionar_comando(event):
     nome_comando_selecionado = combo_comandos.get()
 
-    if os.path.exists("comandos.json"):
-        with open("comandos.json", "r") as arquivo:
-            comandos = json.load(arquivo)
-            for comando in comandos:
-                if comando["nome"] == nome_comando_selecionado:
-                    caixa_texto_comando.delete("1.0", tk.END)
-                    caixa_texto_comando.insert("1.0", comando["comando"])
-                    aplicar_syntax_highlighting()
-                    break
+    comandos = crypto.ler_arquivo_seguro(crypto.ARQUIVO_COMANDOS)
+    if comandos:
+        for comando in comandos:
+            if comando["nome"] == nome_comando_selecionado:
+                caixa_texto_comando.delete("1.0", tk.END)
+                caixa_texto_comando.insert("1.0", comando["comando"])
+                aplicar_syntax_highlighting()
+                break
 
 # ============================================
 # SYNTAX HIGHLIGHTING SQL
@@ -875,19 +861,16 @@ def aplicar_syntax_highlighting(event=None):
 # HISTÓRICO DE COMANDOS
 # ============================================
 
-HISTORICO_FILE = "historico.json"
 MAX_HISTORICO = 100
 
 def salvar_historico(comando, sucesso, mensagem="", registros=0):
     """Salva uma execução no histórico"""
-    historico = []
-    
-    if os.path.exists(HISTORICO_FILE):
-        try:
-            with open(HISTORICO_FILE, "r", encoding="utf-8") as f:
-                historico = json.load(f)
-        except:
+    try:
+        historico = crypto.ler_arquivo_seguro(crypto.ARQUIVO_HISTORICO)
+        if historico is None:
             historico = []
+    except:
+        historico = []
     
     nova_entrada = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -903,8 +886,7 @@ def salvar_historico(comando, sucesso, mensagem="", registros=0):
     # Limitar tamanho do histórico
     historico = historico[:MAX_HISTORICO]
     
-    with open(HISTORICO_FILE, "w", encoding="utf-8") as f:
-        json.dump(historico, f, indent=2, ensure_ascii=False)
+    crypto.escrever_arquivo_seguro(crypto.ARQUIVO_HISTORICO, historico)
 
 def abrir_tela_historico():
     """Abre janela para visualizar histórico de comandos"""
@@ -953,24 +935,23 @@ def abrir_tela_historico():
     scroll_h.pack(fill="x")
     
     # Carregar histórico
-    if os.path.exists(HISTORICO_FILE):
-        try:
-            with open(HISTORICO_FILE, "r", encoding="utf-8") as f:
-                historico = json.load(f)
-                for item in historico:
-                    status = "✅" if item.get("sucesso", False) else "❌"
-                    registros = str(item.get("registros", "-"))
-                    comando_resumo = item.get("comando", "")[:100].replace("\n", " ")
-                    if len(item.get("comando", "")) > 100:
-                        comando_resumo += "..."
-                    tree_hist.insert("", "end", values=(
-                        item.get("timestamp", ""),
-                        status,
-                        registros,
-                        comando_resumo
-                    ))
-        except Exception as e:
-            messagebox.showerror("❌ Erro", f"Erro ao carregar histórico:\n{str(e)}", parent=tela_historico)
+    try:
+        historico = crypto.ler_arquivo_seguro(crypto.ARQUIVO_HISTORICO)
+        if historico:
+            for item in historico:
+                status = "✅" if item.get("sucesso", False) else "❌"
+                registros = str(item.get("registros", "-"))
+                comando_resumo = item.get("comando", "")[:100].replace("\n", " ")
+                if len(item.get("comando", "")) > 100:
+                    comando_resumo += "..."
+                tree_hist.insert("", "end", values=(
+                    item.get("timestamp", ""),
+                    status,
+                    registros,
+                    comando_resumo
+                ))
+    except Exception as e:
+        messagebox.showerror("❌ Erro", f"Erro ao carregar histórico:\n{str(e)}", parent=tela_historico)
     
     def usar_comando():
         """Copia o comando selecionado para o editor"""
@@ -981,20 +962,20 @@ def abrir_tela_historico():
         
         # Buscar comando completo do histórico
         item_index = tree_hist.index(selected[0])
-        if os.path.exists(HISTORICO_FILE):
-            with open(HISTORICO_FILE, "r", encoding="utf-8") as f:
-                historico = json.load(f)
-                if item_index < len(historico):
-                    comando = historico[item_index].get("comando", "")
-                    caixa_texto_comando.delete("1.0", tk.END)
-                    caixa_texto_comando.insert("1.0", comando)
-                    tela_historico.destroy()
+        try:
+            historico = crypto.ler_arquivo_seguro(crypto.ARQUIVO_HISTORICO)
+            if historico and item_index < len(historico):
+                comando = historico[item_index].get("comando", "")
+                caixa_texto_comando.delete("1.0", tk.END)
+                caixa_texto_comando.insert("1.0", comando)
+                tela_historico.destroy()
+        except:
+            pass
     
     def limpar_historico():
         """Limpa todo o histórico"""
         if messagebox.askyesno("🗑️ Confirmar", "Limpar todo o histórico?", parent=tela_historico):
-            if os.path.exists(HISTORICO_FILE):
-                os.remove(HISTORICO_FILE)
+            crypto.escrever_arquivo_seguro(crypto.ARQUIVO_HISTORICO, [])
             for item in tree_hist.get_children():
                 tree_hist.delete(item)
             messagebox.showinfo("✅ Sucesso", "Histórico limpo!", parent=tela_historico)
@@ -1217,7 +1198,139 @@ def limpar_tela():
 # INTERFACE PRINCIPAL
 # ============================================
 
-# Carregar preferência de tema antes de criar a janela
+# ============================================
+# TELA DE LOGIN COM SENHA MESTRA
+# ============================================
+
+def exibir_tela_login():
+    """Exibe tela de login e retorna True se autenticado com sucesso"""
+    
+    login_sucesso = [False]  # Lista para permitir modificação dentro de função aninhada
+    
+    tela_login = tk.Tk()
+    tela_login.title("🔐 FAI-SQL - Autenticação")
+    tela_login.geometry("400x300")
+    tela_login.resizable(False, False)
+    
+    # Centralizar na tela
+    largura_tela = tela_login.winfo_screenwidth()
+    altura_tela = tela_login.winfo_screenheight()
+    pos_x = (largura_tela // 2) - 200
+    pos_y = (altura_tela // 2) - 150
+    tela_login.geometry(f"400x300+{pos_x}+{pos_y}")
+    
+    tela_login.configure(bg="#1e1e1e")
+    
+    frame = tk.Frame(tela_login, bg="#1e1e1e", padx=40, pady=30)
+    frame.pack(expand=True, fill="both")
+    
+    # Título
+    tk.Label(frame, text="🔐 FAI-SQL", font=("Segoe UI", 18, "bold"),
+             bg="#1e1e1e", fg="#4da6ff").pack(pady=(0, 20))
+    
+    # Verificar se é primeira execução
+    primeira_vez = not crypto.senha_configurada()
+    
+    if primeira_vez:
+        tk.Label(frame, text="Crie sua senha mestra:", font=("Segoe UI", 11),
+                 bg="#1e1e1e", fg="#e0e0e0").pack(anchor="w")
+    else:
+        tk.Label(frame, text="Digite sua senha:", font=("Segoe UI", 11),
+                 bg="#1e1e1e", fg="#e0e0e0").pack(anchor="w")
+    
+    entry_senha = tk.Entry(frame, font=("Segoe UI", 12), show="●",
+                           bg="#3d3d3d", fg="#e0e0e0", insertbackground="#e0e0e0",
+                           relief="flat", highlightthickness=1,
+                           highlightbackground="#404040", highlightcolor="#4da6ff")
+    entry_senha.pack(fill="x", pady=(5, 10), ipady=8)
+    entry_senha.focus()
+    
+    # Campo de confirmação (só para primeira vez)
+    entry_confirma = None
+    if primeira_vez:
+        tk.Label(frame, text="Confirme a senha:", font=("Segoe UI", 11),
+                 bg="#1e1e1e", fg="#e0e0e0").pack(anchor="w")
+        entry_confirma = tk.Entry(frame, font=("Segoe UI", 12), show="●",
+                                  bg="#3d3d3d", fg="#e0e0e0", insertbackground="#e0e0e0",
+                                  relief="flat", highlightthickness=1,
+                                  highlightbackground="#404040", highlightcolor="#4da6ff")
+        entry_confirma.pack(fill="x", pady=(5, 10), ipady=8)
+    
+    label_erro = tk.Label(frame, text="", font=("Segoe UI", 9),
+                          bg="#1e1e1e", fg="#f44336")
+    label_erro.pack(pady=(5, 0))
+    
+    def tentar_autenticar(event=None):
+        senha = entry_senha.get()
+        
+        if primeira_vez:
+            confirma = entry_confirma.get() if entry_confirma else ""
+            if senha != confirma:
+                label_erro.config(text="As senhas não coincidem!")
+                return
+            if len(senha) < 4:
+                label_erro.config(text="Senha deve ter pelo menos 4 caracteres!")
+                return
+            
+            sucesso, msg = crypto.configurar_senha(senha)
+            if sucesso:
+                # Migrar dados antigos se existirem
+                crypto.migrar_dados_antigos()
+                login_sucesso[0] = True
+                tela_login.destroy()
+            else:
+                label_erro.config(text=msg)
+        else:
+            sucesso, msg = crypto.verificar_senha(senha)
+            if sucesso:
+                login_sucesso[0] = True
+                tela_login.destroy()
+            else:
+                label_erro.config(text="Senha incorreta!")
+                entry_senha.delete(0, tk.END)
+    
+    def resetar_aplicacao():
+        if messagebox.askyesno("⚠️ Atenção", 
+                               "Isso apagará TODOS os dados!\n\n"
+                               "• Conexões salvas\n"
+                               "• Comandos salvos\n"
+                               "• Histórico\n\n"
+                               "Tem certeza?",
+                               parent=tela_login):
+            crypto.resetar_dados()
+            messagebox.showinfo("✅ Sucesso", "Dados resetados. Reinicie a aplicação.", parent=tela_login)
+            tela_login.destroy()
+    
+    # Botão de entrar
+    btn_entrar = tk.Button(frame, text="Entrar" if not primeira_vez else "Criar Senha",
+                           font=("Segoe UI", 11, "bold"),
+                           bg="#4da6ff", fg="#1e1e1e", relief="flat",
+                           cursor="hand2", command=tentar_autenticar)
+    btn_entrar.pack(fill="x", pady=(15, 5), ipady=8)
+    
+    # Bind Enter
+    entry_senha.bind("<Return>", tentar_autenticar)
+    if entry_confirma:
+        entry_confirma.bind("<Return>", tentar_autenticar)
+    
+    # Link para resetar (só se já tem senha)
+    if not primeira_vez:
+        link_reset = tk.Label(frame, text="Esqueceu a senha? Clique aqui para resetar",
+                              font=("Segoe UI", 9, "underline"),
+                              bg="#1e1e1e", fg="#808080", cursor="hand2")
+        link_reset.pack(pady=(10, 0))
+        link_reset.bind("<Button-1>", lambda e: resetar_aplicacao())
+    
+    tela_login.protocol("WM_DELETE_WINDOW", tela_login.destroy)
+    tela_login.mainloop()
+    
+    return login_sucesso[0]
+
+# Exibir tela de login primeiro
+if not exibir_tela_login():
+    exit()  # Sair se não autenticou
+
+# Carregar preferência de tema (agora que está autenticado)
 carregar_preferencia_tema()
 
 # Criar janela principal

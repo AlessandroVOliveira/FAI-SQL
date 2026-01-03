@@ -14,6 +14,7 @@
 - ✅ **Exportação** para CSV e Excel
 - ✅ **Histórico** de comandos executados
 - ✅ **Undo/Redo** (Ctrl+Z / Ctrl+Y)
+- ✅ **Criptografia AES-256** com senha mestra
 
 ---
 
@@ -43,10 +44,12 @@ copy config.example.json config.json
 copy comandos.example.json comandos.json
 ```
 
-4. Execute a aplicação:
+3. Execute a aplicação:
 ```bash
 python main.py
 ```
+
+4. Na primeira execução, crie sua **senha mestra** para proteger seus dados.
 
 ---
 
@@ -74,16 +77,17 @@ Você pode criar múltiplas conexões e alternar entre elas clicando em **Usar**
 ```
 FAI-SQL/
 ├── main.py              # Aplicação principal
+├── crypto_utils.py      # Módulo de criptografia
 ├── requirements.txt     # Dependências Python
-├── config.json          # Configurações de conexão (não versionado)
-├── comandos.json        # Comandos salvos (não versionado)
-├── historico.json       # Histórico de execuções (não versionado)
+├── config.dat           # Configurações (criptografado, não versionado)
+├── comandos.dat         # Comandos salvos (criptografado, não versionado)
+├── historico.dat        # Histórico (criptografado, não versionado)
+├── .salt                # Salt de criptografia (não versionado)
+├── .verify              # Verificador de senha (não versionado)
 ├── config.example.json  # Exemplo de configuração
 ├── comandos.example.json # Exemplo de comandos
 ├── icon.ico             # Ícone da aplicação
 ├── docs/                # Documentação
-│   ├── contexto_projeto.md
-│   └── relatorio_implementacao_melhorias.md
 └── dist/                # Executável (após build)
 ```
 
@@ -126,6 +130,27 @@ O executável será gerado em `dist/FAISQL.exe`.
 | Interface | Tkinter |
 | Banco de Dados | SQL Server (pyodbc) |
 | Exportação Excel | openpyxl |
+| Criptografia | cryptography (Fernet/AES-256) |
+
+---
+
+## 🔐 Segurança
+
+### Senha Mestra
+
+Todos os dados são protegidos por criptografia AES-256:
+
+- **Primeira execução**: Crie uma senha mestra (mínimo 4 caracteres)
+- **Próximas execuções**: Digite a senha para acessar
+- **Esqueceu a senha?**: Clique no link na tela de login para resetar (apaga todos os dados)
+
+### O que é protegido
+
+- ✅ Conexões de banco de dados (incluindo senhas)
+- ✅ Comandos SQL salvos
+- ✅ Histórico de execuções
+
+> **⚠️ Importante**: Não há recuperação de senha. Se esquecer, todos os dados serão perdidos.
 
 ---
 

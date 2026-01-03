@@ -3,6 +3,14 @@ config.json
 comandos.json
 historico.json
 
+# Arquivos criptografados e autenticação
+config.dat
+comandos.dat
+historico.dat
+.salt
+.verify
+*.backup
+
 # Python
 __pycache__/
 *.py[cod]
