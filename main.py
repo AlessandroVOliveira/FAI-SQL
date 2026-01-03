@@ -238,7 +238,7 @@ def alternar_tema():
 def atualizar_texto_menu_tema():
     """Atualiza o texto do menu de tema"""
     novo_texto = "🌙 Tema Escuro" if tema_atual == "claro" else "☀️ Tema Claro"
-    menu_sistema.entryconfig(3, label=novo_texto)
+    menu_sistema.entryconfig(4, label=novo_texto)
 
 def sair():
     root.quit()
@@ -329,7 +329,7 @@ def abrir_tela_conexao():
     
     tela_conexao = tk.Toplevel(root)
     tela_conexao.title("⚙️ Gerenciador de Conexões")
-    tela_conexao.geometry("600x550")
+    tela_conexao.geometry("600x650")
     tela_conexao.configure(bg=tema["bg"])
     tela_conexao.resizable(False, False)
     
@@ -620,9 +620,9 @@ def abrir_tela_editar_comando():
     
     tela_editar = tk.Toplevel(root)
     tela_editar.title("✏️ Editar Comando")
-    tela_editar.geometry("700x500")
+    tela_editar.geometry("700x550")
     tela_editar.configure(bg=tema["bg"])
-    tela_editar.minsize(500, 400)
+    tela_editar.minsize(500, 500)
     
     tela_editar.transient(root)
     tela_editar.grab_set()
@@ -912,9 +912,9 @@ def abrir_tela_historico():
     
     tela_historico = tk.Toplevel(root)
     tela_historico.title("📜 Histórico de Comandos")
-    tela_historico.geometry("900x600")
+    tela_historico.geometry("900x700")
     tela_historico.configure(bg=tema["bg"])
-    tela_historico.minsize(700, 400)
+    tela_historico.minsize(700, 550)
     
     tela_historico.transient(root)
     tela_historico.grab_set()

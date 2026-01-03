@@ -2,8 +2,6 @@
 
 **Gerenciador de Comandos SQL Desktop** - Software para armazenamento e execução de comandos SQL recorrentes.
 
-![Interface Principal](image.png)
-
 ---
 
 ## 📋 Recursos
