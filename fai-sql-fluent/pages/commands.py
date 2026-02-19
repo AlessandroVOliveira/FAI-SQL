@@ -33,7 +33,9 @@ from qfluentwidgets import (
 )
 
 import crypto_utils as crypto
+from utils.database import carregar_colunas_tabela, carregar_objetos_banco
 from utils.sql_highlighter import SqlHighlighter
+from utils.sql_completer import SqlCompleter
 
 
 class CommandsPage(QWidget):
@@ -46,6 +48,7 @@ class CommandsPage(QWidget):
         self.setObjectName("commands_page")
         self._setup_ui()
         self._atualizar_lista()
+        self._carregar_schema_banco()
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -112,6 +115,9 @@ class CommandsPage(QWidget):
         self._highlighter = SqlHighlighter(
             self._editor_sql.document(), dark=isDarkTheme()
         )
+
+        # Autocomplete
+        self._completer = SqlCompleter(self._editor_sql)
 
         form_btns = QHBoxLayout()
 
@@ -244,3 +250,28 @@ class CommandsPage(QWidget):
         main_window = self.window()
         if hasattr(main_window, "_editor_page"):
             main_window._editor_page.recarregar_comandos()
+
+    def _carregar_schema_banco(self):
+        """Carrega tabelas e colunas do banco ativo para autocomplete contextual."""
+        conn = self._obter_conexao_ativa()
+        if conn:
+            objetos = carregar_objetos_banco(conn)
+            self._completer.set_database_objects(objetos)
+            self._completer.set_column_loader(
+                lambda tabela: carregar_colunas_tabela(conn, tabela)
+            )
+
+    @staticmethod
+    def _obter_conexao_ativa():
+        try:
+            dados = crypto.ler_arquivo_seguro(crypto.ARQUIVO_CONFIG)
+            if dados:
+                nome_ativa = dados.get("conexao_ativa", "")
+                conexoes = dados.get("conexoes", [])
+                for conn in conexoes:
+                    if conn.get("nome") == nome_ativa:
+                        return conn
+        except Exception:
+            pass
+        return None
+

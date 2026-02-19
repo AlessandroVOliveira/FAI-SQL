@@ -27,6 +27,85 @@ def testar_conexao(ip: str, usuario: str, senha: str, banco: str) -> tuple[bool,
         return False, str(e)
 
 
+def carregar_objetos_banco(dados_conexao: dict) -> list[str]:
+    """Busca tabelas e colunas do banco para autocomplete."""
+    string_conexao = (
+        f"DRIVER={{SQL Server}};"
+        f"SERVER={dados_conexao.get('ip', '')};"
+        f"DATABASE={dados_conexao.get('banco', '')};"
+        f"UID={dados_conexao.get('usuario', '')};"
+        f"PWD={dados_conexao.get('senha', '')};"
+    )
+    objetos: list[str] = []
+    try:
+        conexao = pyodbc.connect(string_conexao, timeout=5)
+        cursor = conexao.cursor()
+
+        # Tabelas
+        cursor.execute(
+            "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES "
+            "ORDER BY TABLE_NAME"
+        )
+        for row in cursor.fetchall():
+            schema, table = row[0], row[1]
+            objetos.append(table)
+            if schema != "dbo":
+                objetos.append(f"{schema}.{table}")
+
+        # Colunas
+        cursor.execute(
+            "SELECT DISTINCT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
+            "ORDER BY COLUMN_NAME"
+        )
+        for row in cursor.fetchall():
+            objetos.append(row[0])
+
+        cursor.close()
+        conexao.close()
+    except Exception:
+        pass
+    return objetos
+
+
+def carregar_colunas_tabela(dados_conexao: dict, tabela: str) -> list[str]:
+    """Busca colunas de uma tabela específica para autocomplete contextual."""
+    string_conexao = (
+        f"DRIVER={{SQL Server}};"
+        f"SERVER={dados_conexao.get('ip', '')};"
+        f"DATABASE={dados_conexao.get('banco', '')};"
+        f"UID={dados_conexao.get('usuario', '')};"
+        f"PWD={dados_conexao.get('senha', '')};"
+    )
+    colunas: list[str] = []
+    try:
+        conexao = pyodbc.connect(string_conexao, timeout=5)
+        cursor = conexao.cursor()
+        # Aceitar schema.tabela ou só tabela
+        parts = tabela.split(".", 1)
+        if len(parts) == 2:
+            schema, nome = parts
+            cursor.execute(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
+                "WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? "
+                "ORDER BY ORDINAL_POSITION",
+                (schema, nome),
+            )
+        else:
+            cursor.execute(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
+                "WHERE TABLE_NAME = ? "
+                "ORDER BY ORDINAL_POSITION",
+                (tabela,),
+            )
+        for row in cursor.fetchall():
+            colunas.append(row[0])
+        cursor.close()
+        conexao.close()
+    except Exception:
+        pass
+    return colunas
+
+
 def executar_query(dados_conexao: dict, comando: str) -> dict:
     """
     Executa um comando SQL e retorna o resultado.

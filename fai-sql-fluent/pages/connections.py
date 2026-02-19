@@ -1,8 +1,9 @@
 """
 Página de Gerenciamento de Conexões — FAI-SQL Fluent
-CRUD de conexões SQL Server com teste integrado.
+CRUD de conexões SQL Server com teste integrado e proteção por senha.
 """
 
+import hashlib
 import os
 import sys
 
@@ -11,6 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QHBoxLayout,
+    QLineEdit,
     QListWidgetItem,
     QVBoxLayout,
     QWidget,
@@ -24,23 +26,105 @@ from qfluentwidgets import (
     LineEdit,
     ListWidget,
     MessageBox,
+    MessageBoxBase,
     PasswordLineEdit,
     PrimaryPushButton,
     PushButton,
     StrongBodyLabel,
     SubtitleLabel,
+    ToolButton,
+    isDarkTheme,
 )
 
 import crypto_utils as crypto
 from utils.database import testar_conexao
 
 
+# ======================================================================
+# Diálogo de senha da tela de conexões
+# ======================================================================
+
+class _PasswordDialog(MessageBoxBase):
+    """Diálogo Fluent para criar ou informar a senha da tela de conexões."""
+
+    def __init__(self, is_new: bool, parent=None):
+        self._is_new = is_new
+        self._result_password: str | None = None
+        super().__init__(parent)
+
+        # Montar conteúdo após o super().__init__()
+        self.widget.setMinimumWidth(350)
+
+        if self._is_new:
+            lbl = BodyLabel("Crie uma senha para proteger a tela de conexões:")
+            self.viewLayout.addWidget(lbl)
+
+            self._entry_senha = PasswordLineEdit(self)
+            self._entry_senha.setPlaceholderText("Nova senha")
+            self._entry_senha.setFixedHeight(36)
+            self.viewLayout.addWidget(self._entry_senha)
+
+            self._entry_confirma = PasswordLineEdit(self)
+            self._entry_confirma.setPlaceholderText("Confirme a senha")
+            self._entry_confirma.setFixedHeight(36)
+            self.viewLayout.addWidget(self._entry_confirma)
+        else:
+            lbl = BodyLabel("Digite a senha para acessar as conexões:")
+            self.viewLayout.addWidget(lbl)
+
+            self._entry_senha = PasswordLineEdit(self)
+            self._entry_senha.setPlaceholderText("Senha")
+            self._entry_senha.setFixedHeight(36)
+            self.viewLayout.addWidget(self._entry_senha)
+
+        self._label_erro = BodyLabel("")
+        self._label_erro.setStyleSheet("color: #f44336;")
+        self.viewLayout.addWidget(self._label_erro)
+
+        self.yesButton.setText("Confirmar")
+        self.cancelButton.setText("Cancelar")
+
+        self.yesButton.clicked.disconnect()
+        self.yesButton.clicked.connect(self._confirmar)
+
+    def _confirmar(self):
+        senha = self._entry_senha.text()
+
+        if self._is_new:
+            confirma = self._entry_confirma.text()
+            if len(senha) < 4:
+                self._label_erro.setText("Senha deve ter pelo menos 4 caracteres!")
+                return
+            if senha != confirma:
+                self._label_erro.setText("As senhas não coincidem!")
+                return
+
+        self._result_password = senha
+        self.accept()
+        self.accepted.emit()
+
+    @property
+    def password(self) -> str | None:
+        return self._result_password
+
+
+# ======================================================================
+# Página de Conexões
+# ======================================================================
+
+def _hash_senha(senha: str) -> str:
+    """Gera hash SHA-256 da senha."""
+    return hashlib.sha256(senha.encode("utf-8")).hexdigest()
+
+
 class ConnectionsPage(QWidget):
-    """Página de gerenciamento de conexões."""
+    """Página de gerenciamento de conexões com proteção por cadeado."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("connections_page")
+        self._bloqueado = False       # se a tela está atualmente bloqueada
+        self._desbloqueado_sessao = False  # se já desbloqueou nesta visita
         self._setup_ui()
         self._atualizar_lista()
 
@@ -49,8 +133,25 @@ class ConnectionsPage(QWidget):
         layout.setContentsMargins(25, 20, 25, 20)
         layout.setSpacing(15)
 
+        # --- Cabeçalho com título e cadeado ---
+        header = QHBoxLayout()
         titulo = SubtitleLabel("Gerenciador de Conexões")
-        layout.addWidget(titulo)
+        header.addWidget(titulo)
+        header.addStretch()
+
+        self._btn_lock = ToolButton(FIF.CERTIFICATE)
+        self._btn_lock.setFixedSize(36, 36)
+        self._btn_lock.setToolTip("Proteger tela com senha")
+        self._btn_lock.clicked.connect(self._on_lock_clicked)
+        header.addWidget(self._btn_lock)
+
+        layout.addLayout(header)
+
+        # --- Conteúdo principal (será escondido quando bloqueado) ---
+        self._content_widget = QWidget()
+        content_layout = QVBoxLayout(self._content_widget)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(15)
 
         # Layout horizontal: lista à esquerda, formulário à direita
         content = QHBoxLayout()
@@ -135,8 +236,173 @@ class ConnectionsPage(QWidget):
         right_layout.addLayout(form_btns)
 
         content.addWidget(right_card, 3)
-        layout.addLayout(content, 1)
+        content_layout.addLayout(content, 1)
 
+        layout.addWidget(self._content_widget, 1)
+
+        # --- Overlay de bloqueio ---
+        self._overlay = CardWidget()
+        overlay_layout = QVBoxLayout(self._overlay)
+        overlay_layout.setAlignment(Qt.AlignCenter)
+        overlay_layout.setSpacing(15)
+
+        lock_icon = SubtitleLabel("🔒")
+        lock_icon.setAlignment(Qt.AlignCenter)
+        lock_icon.setStyleSheet("font-size: 48px;")
+        overlay_layout.addWidget(lock_icon)
+
+        lock_label = StrongBodyLabel("Tela protegida por senha")
+        lock_label.setAlignment(Qt.AlignCenter)
+        overlay_layout.addWidget(lock_label)
+
+        btn_desbloquear = PrimaryPushButton(FIF.FINGERPRINT, "Desbloquear")
+        btn_desbloquear.setFixedSize(200, 40)
+        btn_desbloquear.clicked.connect(self._solicitar_desbloqueio)
+        overlay_layout.addWidget(btn_desbloquear, alignment=Qt.AlignCenter)
+
+        self._overlay.setVisible(False)
+        layout.addWidget(self._overlay, 1)
+
+        # Atualizar ícone do cadeado
+        self._atualizar_icone_lock()
+
+    # ------------------------------------------------------------------
+    # Proteção por senha
+    # ------------------------------------------------------------------
+
+    def _tem_senha_tela(self) -> bool:
+        """Verifica se há uma senha de proteção configurada."""
+        try:
+            dados = crypto.ler_arquivo_seguro(crypto.ARQUIVO_CONFIG)
+            if dados and dados.get("conexao_senha_hash"):
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _verificar_senha_tela(self, senha: str) -> bool:
+        """Verifica se a senha informada está correta."""
+        try:
+            dados = crypto.ler_arquivo_seguro(crypto.ARQUIVO_CONFIG)
+            if dados:
+                return dados.get("conexao_senha_hash") == _hash_senha(senha)
+        except Exception:
+            pass
+        return False
+
+    def _salvar_senha_tela(self, senha: str):
+        """Salva o hash da senha de proteção."""
+        try:
+            dados = crypto.ler_arquivo_seguro(crypto.ARQUIVO_CONFIG)
+            if dados is None:
+                dados = {}
+            dados["conexao_senha_hash"] = _hash_senha(senha)
+            crypto.escrever_arquivo_seguro(crypto.ARQUIVO_CONFIG, dados)
+        except Exception:
+            pass
+
+    def _remover_senha_tela(self):
+        """Remove a senha de proteção."""
+        try:
+            dados = crypto.ler_arquivo_seguro(crypto.ARQUIVO_CONFIG)
+            if dados and "conexao_senha_hash" in dados:
+                del dados["conexao_senha_hash"]
+                crypto.escrever_arquivo_seguro(crypto.ARQUIVO_CONFIG, dados)
+        except Exception:
+            pass
+
+    def _atualizar_icone_lock(self):
+        """Atualiza ícone e tooltip do cadeado."""
+        if self._tem_senha_tela():
+            self._btn_lock.setIcon(FIF.CERTIFICATE)
+            self._btn_lock.setToolTip("Proteção ativa — clique para remover")
+        else:
+            self._btn_lock.setIcon(FIF.FINGERPRINT)
+            self._btn_lock.setToolTip("Clique para ativar proteção por senha")
+
+    def _bloquear_tela(self):
+        """Bloqueia o acesso ao conteúdo."""
+        self._bloqueado = True
+        self._content_widget.setVisible(False)
+        self._overlay.setVisible(True)
+
+    def _desbloquear_tela(self):
+        """Desbloqueia o acesso ao conteúdo."""
+        self._bloqueado = False
+        self._desbloqueado_sessao = True
+        self._content_widget.setVisible(True)
+        self._overlay.setVisible(False)
+
+    def _on_lock_clicked(self):
+        """Ação ao clicar no cadeado."""
+        if self._tem_senha_tela():
+            # Já tem senha: perguntar se deseja remover
+            box = MessageBox(
+                "Remover Proteção",
+                "Deseja remover a senha de proteção desta tela?",
+                self,
+            )
+            if box.exec():
+                # Pedir senha atual para confirmar remoção
+                dlg = _PasswordDialog(is_new=False, parent=self)
+                if dlg.exec() and dlg.password:
+                    if self._verificar_senha_tela(dlg.password):
+                        self._remover_senha_tela()
+                        self._desbloquear_tela()
+                        self._atualizar_icone_lock()
+                        InfoBar.success(
+                            "Sucesso", "Proteção removida!",
+                            parent=self, duration=3000, position=InfoBarPosition.TOP,
+                        )
+                    else:
+                        InfoBar.error(
+                            "Erro", "Senha incorreta!",
+                            parent=self, duration=3000, position=InfoBarPosition.TOP,
+                        )
+        else:
+            # Não tem senha: criar
+            dlg = _PasswordDialog(is_new=True, parent=self)
+            if dlg.exec() and dlg.password:
+                self._salvar_senha_tela(dlg.password)
+                self._atualizar_icone_lock()
+                InfoBar.success(
+                    "Sucesso",
+                    "Proteção ativada! Na próxima visita a senha será solicitada.",
+                    parent=self, duration=4000, position=InfoBarPosition.TOP,
+                )
+
+    def _solicitar_desbloqueio(self):
+        """Abre o diálogo para desbloquear a tela."""
+        dlg = _PasswordDialog(is_new=False, parent=self)
+        if dlg.exec() and dlg.password:
+            if self._verificar_senha_tela(dlg.password):
+                self._desbloquear_tela()
+                InfoBar.success(
+                    "Sucesso", "Tela desbloqueada!",
+                    parent=self, duration=2000, position=InfoBarPosition.TOP,
+                )
+            else:
+                InfoBar.error(
+                    "Erro", "Senha incorreta!",
+                    parent=self, duration=3000, position=InfoBarPosition.TOP,
+                )
+
+    def showEvent(self, event):
+        """Verifica proteção ao acessar a tela."""
+        super().showEvent(event)
+        if self._tem_senha_tela() and not self._desbloqueado_sessao:
+            self._bloquear_tela()
+        else:
+            self._desbloquear_tela()
+
+    def hideEvent(self, event):
+        """Reseta desbloqueio ao sair da tela."""
+        super().hideEvent(event)
+        if self._tem_senha_tela():
+            self._desbloqueado_sessao = False
+
+    # ------------------------------------------------------------------
+    # CRUD de Conexões
     # ------------------------------------------------------------------
 
     def _carregar_conexoes(self) -> list[dict]:
@@ -193,7 +459,6 @@ class ConnectionsPage(QWidget):
                 crypto.escrever_arquivo_seguro(crypto.ARQUIVO_CONFIG, dados)
                 InfoBar.success("Sucesso", f"Conexão '{nome}' ativada!",
                                 parent=self, duration=3000, position=InfoBarPosition.TOP)
-                # Atualizar editor page
                 main_window = self.window()
                 if hasattr(main_window, "_editor_page"):
                     main_window._editor_page.atualizar_conexao()

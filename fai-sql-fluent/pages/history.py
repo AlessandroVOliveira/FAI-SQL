@@ -67,8 +67,8 @@ class HistoryPage(QWidget):
         card_layout.setContentsMargins(15, 15, 15, 15)
 
         self._tabela = TableWidget()
-        self._tabela.setColumnCount(4)
-        self._tabela.setHorizontalHeaderLabels(["Data/Hora", "Status", "Registros", "Comando"])
+        self._tabela.setColumnCount(5)
+        self._tabela.setHorizontalHeaderLabels(["Data/Hora", "Conexão", "Status", "Registros", "Comando"])
         self._tabela.setWordWrap(False)
         self._tabela.setAlternatingRowColors(True)
         self._tabela.setEditTriggers(TableWidget.NoEditTriggers)
@@ -79,10 +79,12 @@ class HistoryPage(QWidget):
         header_view.setSectionResizeMode(0, QHeaderView.Fixed)
         header_view.setSectionResizeMode(1, QHeaderView.Fixed)
         header_view.setSectionResizeMode(2, QHeaderView.Fixed)
-        header_view.setSectionResizeMode(3, QHeaderView.Stretch)
+        header_view.setSectionResizeMode(3, QHeaderView.Fixed)
+        header_view.setSectionResizeMode(4, QHeaderView.Stretch)
         self._tabela.setColumnWidth(0, 160)
-        self._tabela.setColumnWidth(1, 70)
-        self._tabela.setColumnWidth(2, 90)
+        self._tabela.setColumnWidth(1, 140)
+        self._tabela.setColumnWidth(2, 70)
+        self._tabela.setColumnWidth(3, 90)
 
         self._tabela.doubleClicked.connect(self._usar_comando)
 
@@ -116,20 +118,22 @@ class HistoryPage(QWidget):
         for row, item in enumerate(self._historico):
             self._tabela.setItem(row, 0, QTableWidgetItem(item.get("timestamp", "")))
 
+            self._tabela.setItem(row, 1, QTableWidgetItem(item.get("conexao", "")))
+
             status = "✅" if item.get("sucesso", False) else "❌"
             status_item = QTableWidgetItem(status)
             status_item.setTextAlignment(Qt.AlignCenter)
-            self._tabela.setItem(row, 1, status_item)
+            self._tabela.setItem(row, 2, status_item)
 
             reg_item = QTableWidgetItem(str(item.get("registros", "-")))
             reg_item.setTextAlignment(Qt.AlignCenter)
-            self._tabela.setItem(row, 2, reg_item)
+            self._tabela.setItem(row, 3, reg_item)
 
             cmd = item.get("comando", "")
             resumo = cmd[:120].replace("\n", " ")
             if len(cmd) > 120:
                 resumo += "..."
-            self._tabela.setItem(row, 3, QTableWidgetItem(resumo))
+            self._tabela.setItem(row, 4, QTableWidgetItem(resumo))
 
     def _usar_comando(self):
         row = self._tabela.currentRow()

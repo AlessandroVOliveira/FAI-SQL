@@ -30,6 +30,7 @@ from qfluentwidgets import (
     FluentIcon as FIF,
     InfoBar,
     InfoBarPosition,
+    MessageBox,
     PrimaryPushButton,
     PushButton,
     StrongBodyLabel,
@@ -39,8 +40,9 @@ from qfluentwidgets import (
 )
 
 import crypto_utils as crypto
-from utils.database import executar_query, exportar_csv, exportar_excel
+from utils.database import carregar_colunas_tabela, carregar_objetos_banco, executar_query, exportar_csv, exportar_excel
 from utils.sql_highlighter import SqlHighlighter
+from utils.sql_completer import SqlCompleter
 
 
 class EditorPage(QWidget):
@@ -54,6 +56,7 @@ class EditorPage(QWidget):
         self._setup_ui()
         self._carregar_comandos()
         QTimer.singleShot(200, self._atualizar_label_conexao)
+        QTimer.singleShot(500, self._carregar_schema_banco)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -119,6 +122,9 @@ class EditorPage(QWidget):
         self._highlighter = SqlHighlighter(
             self._editor.document(), dark=isDarkTheme()
         )
+
+        # Autocomplete
+        self._completer = SqlCompleter(self._editor)
 
         top_layout.addWidget(editor_card)
 
@@ -233,6 +239,18 @@ class EditorPage(QWidget):
     def atualizar_conexao(self):
         """Chamado externo quando a conexão é alterada."""
         self._atualizar_label_conexao()
+        self._carregar_schema_banco()
+
+    def _carregar_schema_banco(self):
+        """Carrega tabelas e colunas do banco ativo para autocomplete."""
+        conn = self._obter_conexao_ativa()
+        if conn:
+            objetos = carregar_objetos_banco(conn)
+            self._completer.set_database_objects(objetos)
+            # Callback para carregar colunas de uma tabela sob demanda
+            self._completer.set_column_loader(
+                lambda tabela: carregar_colunas_tabela(conn, tabela)
+            )
 
     @staticmethod
     def _obter_conexao_ativa():
@@ -252,6 +270,32 @@ class EditorPage(QWidget):
     # Execução
     # ------------------------------------------------------------------
 
+    # Comandos perigosos e suas descrições
+    _COMANDOS_PERIGOSOS = [
+        ("DROP",     "🚨 Este comando irá REMOVER um objeto do banco de dados permanentemente."),
+        ("TRUNCATE", "🚨 Este comando irá APAGAR TODOS os registros da tabela."),
+        ("DELETE",   "⚠️ Este comando irá EXCLUIR dados do banco."),
+        ("UPDATE",   "⚠️ Este comando irá ALTERAR dados existentes no banco."),
+        ("ALTER",    "⚠️ Este comando irá MODIFICAR a estrutura do banco de dados."),
+    ]
+
+    def _confirmar_comando_perigoso(self, comando: str) -> bool:
+        """Exibe confirmação para comandos destrutivos. Retorna True se pode prosseguir."""
+        cmd_upper = comando.strip().upper()
+
+        for keyword, descricao in self._COMANDOS_PERIGOSOS:
+            if cmd_upper.startswith(keyword):
+                box = MessageBox(
+                    f"Comando {keyword} detectado",
+                    f"{descricao}\n\nDeseja realmente executar este comando?",
+                    self,
+                )
+                box.yesButton.setText("Executar")
+                box.cancelButton.setText("Cancelar")
+                return bool(box.exec())
+
+        return True
+
     def _executar_comando(self):
         comando = self._editor.toPlainText().strip()
         if not comando:
@@ -263,6 +307,10 @@ class EditorPage(QWidget):
         if not dados_conexao:
             InfoBar.error("Erro", "Configure uma conexão primeiro!",
                           parent=self, duration=3000, position=InfoBarPosition.TOP)
+            return
+
+        # Verificar comandos perigosos
+        if not self._confirmar_comando_perigoso(comando):
             return
 
         resultado = executar_query(dados_conexao, comando)
@@ -280,12 +328,13 @@ class EditorPage(QWidget):
                 comando, True,
                 resultado["mensagem"],
                 resultado["registros"],
+                dados_conexao.get("nome", ""),
             )
         else:
             self._label_status.setText("❌ Erro na execução")
             InfoBar.error("Erro", resultado["mensagem"],
                           parent=self, duration=5000, position=InfoBarPosition.TOP)
-            self._salvar_historico(comando, False, resultado["mensagem"][:200])
+            self._salvar_historico(comando, False, resultado["mensagem"][:200], 0, dados_conexao.get("nome", ""))
 
     def _exibir_resultados(self, colunas: list[str], dados: list[list[str]]):
         self._colunas_resultado = colunas
@@ -376,7 +425,7 @@ class EditorPage(QWidget):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _salvar_historico(comando: str, sucesso: bool, mensagem: str = "", registros: int = 0):
+    def _salvar_historico(comando: str, sucesso: bool, mensagem: str = "", registros: int = 0, conexao: str = ""):
         MAX_HISTORICO = 100
         try:
             historico = crypto.ler_arquivo_seguro(crypto.ARQUIVO_HISTORICO)
@@ -391,6 +440,7 @@ class EditorPage(QWidget):
             "sucesso": sucesso,
             "mensagem": mensagem,
             "registros": registros,
+            "conexao": conexao,
         }
         historico.insert(0, nova_entrada)
         historico = historico[:MAX_HISTORICO]
