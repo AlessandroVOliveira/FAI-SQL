@@ -1,6 +1,13 @@
 # FAI-SQL
 
-**Gerenciador de Comandos SQL Desktop** - Software para armazenamento e execução de comandos SQL recorrentes.
+**Gerenciador de Comandos SQL Desktop** — Software para armazenamento e execução de comandos SQL recorrentes.
+
+O projeto possui **duas versões de interface**:
+
+| Versão | Pasta | Interface | Status |
+|--------|-------|-----------|--------|
+| **Clássica** | `./` (raiz) | Tkinter | ✅ Estável |
+| **Fluent** | `fai-sql-fluent/` | PySide6 + Fluent Widgets | ✅ Nova |
 
 ---
 
@@ -15,6 +22,7 @@
 - ✅ **Histórico** de comandos executados
 - ✅ **Undo/Redo** (Ctrl+Z / Ctrl+Y)
 - ✅ **Criptografia AES-256** com senha mestra
+- ✅ **Navegação lateral** estilo Windows 11 (versão Fluent)
 
 ---
 
@@ -22,53 +30,29 @@
 
 ### Pré-requisitos
 
-- Python 3.8+
+- Python 3.10+
 - Driver ODBC do SQL Server instalado
 
-### Passos
+### Versão Clássica (Tkinter)
 
-1. Clone o repositório:
 ```bash
 git clone https://github.com/seu-usuario/FAI-SQL.git
 cd FAI-SQL
-```
-
-2. Instale as dependências:
-```bash
 pip install -r requirements.txt
-```
-
-3. Crie os arquivos de configuração:
-```bash
-copy config.example.json config.json
-copy comandos.example.json comandos.json
-```
-
-3. Execute a aplicação:
-```bash
 python main.py
 ```
 
-4. Na primeira execução, crie sua **senha mestra** para proteger seus dados.
+### Versão Fluent (PySide6)
 
----
+```bash
+cd FAI-SQL
+pip install -r fai-sql-fluent/requirements.txt
+python fai-sql-fluent/main.py
+```
 
-## ⚙️ Configuração
+Na primeira execução de qualquer versão, crie sua **senha mestra** para proteger seus dados.
 
-### Conexão com Banco de Dados
-
-1. Acesse **Sistema → Conexão**
-2. Preencha os dados: Nome, Servidor/IP, Usuário, Senha, Banco
-3. Clique em **Testar** para verificar
-4. Clique em **Salvar** para adicionar
-
-Você pode criar múltiplas conexões e alternar entre elas clicando em **Usar**.
-
-### Gerenciamento de Comandos
-
-- **Adicionar**: Sistema → Adicionar Comando
-- **Editar**: Selecione um comando e clique em ✏️ Editar
-- **Excluir**: Selecione um comando e clique em 🗑️ Excluir
+> **💡 Nota**: Ambas as versões compartilham os mesmos arquivos de dados (`config.dat`, `comandos.dat`, `historico.dat`) e o mesmo `crypto_utils.py`.
 
 ---
 
@@ -76,26 +60,53 @@ Você pode criar múltiplas conexões e alternar entre elas clicando em **Usar**
 
 ```
 FAI-SQL/
-├── main.py              # Aplicação principal
-├── crypto_utils.py      # Módulo de criptografia
-├── requirements.txt     # Dependências Python
-├── config.dat           # Configurações (criptografado, não versionado)
-├── comandos.dat         # Comandos salvos (criptografado, não versionado)
-├── historico.dat        # Histórico (criptografado, não versionado)
-├── .salt                # Salt de criptografia (não versionado)
-├── .verify              # Verificador de senha (não versionado)
-├── config.example.json  # Exemplo de configuração
-├── comandos.example.json # Exemplo de comandos
-├── icon.ico             # Ícone da aplicação
-├── docs/                # Documentação
-└── dist/                # Executável (após build)
+├── main.py                  # Versão Clássica (Tkinter)
+├── crypto_utils.py          # Módulo de criptografia (compartilhado)
+├── requirements.txt         # Dependências (versão clássica)
+├── icon.ico                 # Ícone da aplicação
+│
+├── fai-sql-fluent/          # Versão Fluent (PySide6)
+│   ├── main.py              # Entry point + login
+│   ├── app.py               # Janela principal (FluentWindow)
+│   ├── requirements.txt     # Dependências (versão fluent)
+│   ├── pages/
+│   │   ├── editor.py        # Editor SQL + resultados
+│   │   ├── connections.py   # Gerenciador de conexões
+│   │   ├── commands.py      # Comandos salvos
+│   │   └── history.py       # Histórico de execuções
+│   └── utils/
+│       ├── database.py      # Funções de conexão e queries
+│       └── sql_highlighter.py # Syntax highlighting SQL
+│
+├── config.dat               # Configurações (criptografado)
+├── comandos.dat             # Comandos salvos (criptografado)
+├── historico.dat            # Histórico (criptografado)
+├── .salt                    # Salt de criptografia
+├── .verify                  # Verificador de senha
+└── docs/                    # Documentação
 ```
+
+---
+
+## ⚙️ Configuração
+
+### Conexão com Banco de Dados
+
+1. Acesse a página **Conexões** (versão Fluent) ou **Sistema → Conexão** (versão clássica)
+2. Preencha os dados: Nome, Servidor/IP, Usuário, Senha, Banco
+3. Clique em **Testar** para verificar
+4. Clique em **Salvar** para adicionar
+
+Você pode criar múltiplas conexões e alternar entre elas clicando em **Usar**.
 
 ---
 
 ## 🎨 Temas
 
-Alterne entre tema claro e escuro em: **Sistema → Tema Escuro/Claro**
+Alterne entre tema claro e escuro:
+
+- **Versão Fluent**: Botão **Alternar Tema** na barra lateral
+- **Versão Clássica**: Menu **Sistema → Tema Escuro/Claro**
 
 A preferência é salva automaticamente.
 
@@ -104,14 +115,14 @@ A preferência é salva automaticamente.
 ## 📤 Exportação
 
 Após executar um SELECT:
-- Clique em **📄 CSV** para exportar como CSV
-- Clique em **📊 Excel** para exportar como Excel formatado
+- Clique em **CSV** para exportar como CSV
+- Clique em **Excel** para exportar como Excel formatado
 
 ---
 
 ## 🔨 Build (Executável)
 
-Para criar um `.exe` distribuível:
+### Versão Clássica (Tkinter)
 
 ```bash
 pip install pyinstaller
@@ -120,23 +131,32 @@ pyinstaller --onefile --windowed --icon=icon.ico --name "FAISQL" main.py
 
 O executável será gerado em `dist/FAISQL.exe`.
 
+### Versão Fluent (PySide6)
+
+```bash
+pip install pyinstaller
+python -m PyInstaller --onefile --windowed --icon=icon.ico --name "FAISQL-Fluent" --add-data "crypto_utils.py;." --hidden-import qfluentwidgets --hidden-import PySide6.QtSvg --hidden-import PySide6.QtSvgWidgets fai-sql-fluent/main.py
+```
+
+O executável será gerado em `dist/FAISQL-Fluent.exe`.
+
+> **⚠️ Importante**: Execute o comando na raiz do projeto (`FAI-SQL/`), não dentro de `fai-sql-fluent/`.
+
 ---
 
 ## 🛠️ Tecnologias
 
-| Componente | Tecnologia |
-|------------|------------|
-| Linguagem | Python 3.x |
-| Interface | Tkinter |
-| Banco de Dados | SQL Server (pyodbc) |
-| Exportação Excel | openpyxl |
-| Criptografia | cryptography (Fernet/AES-256) |
+| Componente | Versão Clássica | Versão Fluent |
+|------------|-----------------|---------------|
+| Linguagem | Python 3.x | Python 3.10+ |
+| Interface | Tkinter | PySide6 + pyside6-fluent-widgets |
+| Banco de Dados | pyodbc (SQL Server) | pyodbc (SQL Server) |
+| Exportação Excel | openpyxl | openpyxl |
+| Criptografia | cryptography (Fernet/AES-256) | cryptography (Fernet/AES-256) |
 
 ---
 
 ## 🔐 Segurança
-
-### Senha Mestra
 
 Todos os dados são protegidos por criptografia AES-256:
 
