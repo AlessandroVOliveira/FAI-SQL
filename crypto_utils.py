@@ -4,6 +4,7 @@ Usa AES-256 via Fernet com chave derivada de senha do usuário (PBKDF2)
 """
 
 import os
+import sys
 import json
 import base64
 import hashlib
@@ -11,12 +12,24 @@ from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-# Arquivos de dados criptografados
-ARQUIVO_CONFIG = "config.dat"
-ARQUIVO_COMANDOS = "comandos.dat"
-ARQUIVO_HISTORICO = "historico.dat"
-ARQUIVO_SALT = ".salt"  # Arquivo que guarda o salt (indica que senha foi configurada)
-ARQUIVO_VERIFICADOR = ".verify"  # Para verificar se a senha está correta
+
+def _get_base_dir():
+    """Retorna o diretório base para os arquivos de dados.
+    Se executando como .exe PyInstaller, retorna a pasta do .exe.
+    Se executando como script Python, retorna a pasta do script."""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+_BASE_DIR = _get_base_dir()
+
+# Arquivos de dados criptografados (caminhos absolutos baseados na pasta do .exe)
+ARQUIVO_CONFIG = os.path.join(_BASE_DIR, "config.dat")
+ARQUIVO_COMANDOS = os.path.join(_BASE_DIR, "comandos.dat")
+ARQUIVO_HISTORICO = os.path.join(_BASE_DIR, "historico.dat")
+ARQUIVO_SALT = os.path.join(_BASE_DIR, ".salt")  # Arquivo que guarda o salt (indica que senha foi configurada)
+ARQUIVO_VERIFICADOR = os.path.join(_BASE_DIR, ".verify")  # Para verificar se a senha está correta
 
 # Variável global para armazenar a chave durante a sessão
 _chave_sessao = None
@@ -193,34 +206,37 @@ def migrar_dados_antigos():
     migrou = False
     
     # Migrar config.json
-    if os.path.exists("config.json") and not os.path.exists(ARQUIVO_CONFIG):
+    config_json = os.path.join(_BASE_DIR, "config.json")
+    if os.path.exists(config_json) and not os.path.exists(ARQUIVO_CONFIG):
         try:
-            with open("config.json", "r", encoding="utf-8") as f:
+            with open(config_json, "r", encoding="utf-8") as f:
                 dados = json.load(f)
             escrever_arquivo_seguro(ARQUIVO_CONFIG, dados)
-            os.rename("config.json", "config.json.backup")
+            os.rename(config_json, config_json + ".backup")
             migrou = True
         except:
             pass
     
     # Migrar comandos.json
-    if os.path.exists("comandos.json") and not os.path.exists(ARQUIVO_COMANDOS):
+    comandos_json = os.path.join(_BASE_DIR, "comandos.json")
+    if os.path.exists(comandos_json) and not os.path.exists(ARQUIVO_COMANDOS):
         try:
-            with open("comandos.json", "r", encoding="utf-8") as f:
+            with open(comandos_json, "r", encoding="utf-8") as f:
                 dados = json.load(f)
             escrever_arquivo_seguro(ARQUIVO_COMANDOS, dados)
-            os.rename("comandos.json", "comandos.json.backup")
+            os.rename(comandos_json, comandos_json + ".backup")
             migrou = True
         except:
             pass
     
     # Migrar historico.json
-    if os.path.exists("historico.json") and not os.path.exists(ARQUIVO_HISTORICO):
+    historico_json = os.path.join(_BASE_DIR, "historico.json")
+    if os.path.exists(historico_json) and not os.path.exists(ARQUIVO_HISTORICO):
         try:
-            with open("historico.json", "r", encoding="utf-8") as f:
+            with open(historico_json, "r", encoding="utf-8") as f:
                 dados = json.load(f)
             escrever_arquivo_seguro(ARQUIVO_HISTORICO, dados)
-            os.rename("historico.json", "historico.json.backup")
+            os.rename(historico_json, historico_json + ".backup")
             migrou = True
         except:
             pass

@@ -6,7 +6,10 @@ import sys
 import os
 
 # Adiciona a raiz do projeto ao path para importar crypto_utils
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+if getattr(sys, 'frozen', False):
+    sys.path.insert(0, os.path.dirname(sys.executable))
+else:
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QIcon
@@ -179,8 +182,11 @@ class LoginDialog(QDialog):
 
 
 def main():
-    # Setar diretório de trabalho para a raiz do projeto (onde ficam os .dat)
-    os.chdir(os.path.join(os.path.dirname(__file__), ".."))
+    # Setar diretório de trabalho para a pasta do .exe (ou raiz do projeto em dev)
+    if getattr(sys, 'frozen', False):
+        os.chdir(os.path.dirname(sys.executable))
+    else:
+        os.chdir(os.path.join(os.path.dirname(__file__), ".."))
 
     app = QApplication(sys.argv)
     app.setFont(QFont("Segoe UI", 10))
